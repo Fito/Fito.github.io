@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Testing at Entelo"
+title:  "Unit Testing"
 date:   2017-04-18 23:53:42 -0700
 ---
 I joined Entelo about two and a half months ago and I'm excited to be working as part of a team that fully embraces testing as part our software development process.
