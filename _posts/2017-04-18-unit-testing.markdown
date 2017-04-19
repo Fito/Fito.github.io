@@ -23,11 +23,7 @@ class Car
   end
 
   private
-  # these methods are only used within this class and should not be tested
-  def miles_per_gallon
-    # some value
-  end
-
+  # this method is only used within this class and should not be tested
   def current_price_per_gallon
     # get current gas prices from some API
   end
@@ -212,6 +208,6 @@ end
 ```
 
 Following these rules allows me to write high-value/low-cost tests. They allow me to move fast while giving me a safety net.
-Of course, I did not come up with these rules myself. While they are heavily influenced by my experience and personal style of software design, they are also based on various concepts borrowed from the works of Martin Fowler and Sandi Metz.
+Of course, I did not come up with these rules myself. While they are heavily influenced by my experience, my co-workers and my personal style of software design, they are also based on various concepts borrowed from the works of Martin Fowler and Sandi Metz.
 
-Lastly, these ideas constitute a guideline. I follow then as much as I can and compromise when necessary.
+Lastly, these ideas constitute a guideline. I follow then as much as I can, but I compromise when necessary.
