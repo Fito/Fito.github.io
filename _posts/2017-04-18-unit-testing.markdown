@@ -3,16 +3,16 @@ layout: post
 title:  "Unit Testing"
 date:   2017-04-18 23:53:42 -0700
 ---
-I joined Entelo about two and a half months ago and I'm excited to be working as part of a team that fully embraces testing as part our software development process.
+I joined Entelo about two and a half months ago, I'm excited to be working as part of a team that fully embraces testing as part our software development process.
 
-Unit tests provide many benefits in the short and long run. However, instead of writing about these benefits, I will assume that you are already familiar with them. I will instead focus on some of the practices I follow when writing unit tests.
+Tests provide many benefits in the short and long run. However, instead of writing about these benefits, I will assume that you are already familiar with them. I will instead focus on some of the practices I follow when writing unit tests.
 Tests are an investment into your future codebase. The benefits of your investment could be reaped at different points in time, maybe as soon as the next couple of hours of coding, or while making changes to your codebase months later.
 
-However, like with any other type of investment, you should invest wisely. Tests are code, which means they require some level of maintenance. Also, slow tests increase development time and, when ran as part of a continuous integration system, can even get in the way of a deployment.
-To get the most out of unit tests, while keeping their cost down, I apply the few rules of thumb:
+However, like with any other type of investment, you should invest wisely. Tests are code, which means they require maintenance. Also, slow tests increase development time and, when ran as part of a continuous integration system, can even get in the way of a deployment.
+To get the most out of unit tests, while keeping their cost down, I apply a few rules of thumb:
 
 #### Test only public interfaces
-An object's public interface is the way other objects in the system can interact with it. It encompasses a contract with the rest of the codebase. When this contract is broken tests should fail, thus raising an alarm that there is a broken path through the codebase. However, private methods and the internals of a class should be allowed to change freely as long as the contract is not broken. Testing a private method adds unnecessary friction to the development process and provides little value, if at all.
+An object's public interface is the way other objects in the system can interact with it. It encompasses a contract with the rest of the codebase. When this contract is broken tests should fail, thus raising an alarm that there is an incorrect path through the codebase. However, private methods and the internals of a class should be allowed to change freely as long as the contract is not broken. Testing a private method adds unnecessary friction to the development process and provides little value, if at all, and it couples the tests to the implementation.
 
 Example:
 ```ruby
@@ -27,11 +27,16 @@ class Car
   def current_price_per_gallon
     # get current gas prices from some API
   end
+
+  def miles_per_gallon
+    # some value
+  end
 end
 
 describe Car do
   subject { Car.new }
-  # other test setup
+  let(:dollars) { 50 }
+  let(:miles) { 500 } # expected miles per dollar amount
 
   describe "#miles_per_dollar_amount" do
     it "returns the miles a car will travel for the given amount" do
@@ -42,14 +47,14 @@ end
 ```
 
 #### Write descriptive and eloquent tests
-Tests play a larger role than just running your code. Tests are live documentation and as such, they should provide enough context about what's being tested. The next person updating a test should get enough information to confidently make a change by just reading the test statements. Running the test should give a developer complete and sensical sentences explaining what passed and what didn't.
+Tests play a larger role than just running your code. Tests are live documentation and as such, they should provide enough context about what's being tested. The next person updating a test should get enough information to confidently make a change by just reading the test statements. Running the test should give a developer complete and meaningful sentences explaining what passed and what didn't.
 
 Example of a not very descriptive test:
 ```ruby
 describe Car do
   subject { Car.new }
   # other test setup
-  describe "#move" do
+  describe "#run" do
     context "no gas" do
       # setup for an empty gas tank
       it "does not work" do
@@ -64,7 +69,7 @@ Example of a descriptive test:
 describe Car do
   subject { Car.new }
   # other test setup
-  describe "#move" do
+  describe "#run" do
     context "when there is no gas left in the tank" do
       # setup for an empty gas tank
       it "does not change its current position" do
@@ -79,9 +84,18 @@ end
 #### Mock/Stub dependencies
 Often objects depend on other objects to accomplish their task. This dependency should be documented in tests via assertions about the right object receiving the right messages.
 
-However, these tests should only assert that a message _is passed_, not what the receiver does or what it returns. These dependencies should have already been tested, and developers should trust that they do what they are supposed to do.
+However, these tests should only assert that a message _is passed_, not what the receiver does or what it returns. These dependencies should have already been tested elsewhere, and developers should trust that they do what they are supposed to do.
 
 Testing what an object's dependency does creates unnecessary coupling between the test itself and the dependency.
+Let's suppose we have a `Mechanic` object, in charge of servicing a `Car` object:
+```ruby
+class Mechanic
+  def service(car)
+    car.spark_plugs = new_spark_plugs if should_change?(car.spark_plugs)
+    # perform other maintenance tasks
+  end
+end
+```
 
 Example of a test with unnecessary coupling:
 ```ruby
@@ -90,10 +104,10 @@ describe Mechanic do
   let(:car) { Car.new(engine: engine) }
   let(:engine) { Engine.new }
 
-  describe "#change_oil" do
-    it "gets the car's oil level from its engine" do
-      expect(engine).to receive(:oil_level)
-      subject.change_oil(car)
+  describe "#service" do
+    it "gets the car's spark plugs from its engine" do
+      expect(engine).to receive(:spark_plugs)
+      subject.service(car)
     end
   end
 end
@@ -105,13 +119,13 @@ Example of test stubbing a dependency:
 ```ruby
 describe Mechanic do
   subject { Mechanic.new }
-  let(:car) { double('car', oil_level: oil_level) }
-  let(:oil_level) { 'some level' } # not our concern how car gets this
+  let(:car) { double('car', spark_plugs: spark_plugs) }
+  let(:spark_plugs) { double('spark_plugs') } # not our concern how car gets this
 
-  describe "#change_oil" do
-    it "measures the car's oil level" do
-      expect(car).to receive(:oil_level).and_return(oil_level)
-      subject.change_oil(car)
+  describe "#service" do
+    it "gets the car's spark plugs" do
+      expect(car).to receive(:spark_plugs).and_return(spark_plugs)
+      subject.service(car)
     end
   end
 end
@@ -122,24 +136,25 @@ When testing an object that collaborates with ActiveRecord objects (or any other
 However, this can lead to making unnecessary trips to the database. Every 'trip' to the database slows down tests significantly, which in turn slows down the software development process itself.
 
 This slowdown becomes more noticeable as the codebase grows and the number of tests increases.
-To avoid this problem, unit tests should treat ActiveRecord as any other dependency and test only the message passing.
+To avoid this problem, unit tests should treat the data layer as any other dependency and test only the message passing.
 
 Example of unnecessary database trips:
 ```ruby
 describe Notification do
   # Group and User are ActiveRecord Models
-  subject { Notification.new(group: users_group, message) }
+  subject { Notification.new(group: users_group, message: message) }
   let(:message) { "Some Message" }
   let(:users_group) { Group.create }
   let(:user) { User.create }
 
   describe "#send" do
     before do
-      allow(users_group).to receive(:users).and_return([user])
+      users_group.users << user
     end
 
     it "notifies all users in the group" do
       expect(user).to receive(:notify).with(message)
+      subject.send
     end
   end
 end
@@ -148,7 +163,7 @@ Example leveraging doubles to avoid database trips:
 ```ruby
 describe Notification do
   # Group and User are ActiveRecord Models
-  subject { Notification.new(group: users_group, message) }
+  subject { Notification.new(group: users_group, message: message) }
   let(:message) { "Some Message" }
   let(:users_group) { double('group', users: [user]) }
   let(:user) { double('user', notify: true) }
@@ -156,6 +171,7 @@ describe Notification do
   describe "#send" do
     it "notifies all users in the group" do
       expect(user).to receive(:notify).with(message)
+      subject.send
     end
   end
 end
@@ -208,6 +224,6 @@ end
 ```
 
 Following these rules allows me to write high-value/low-cost tests. They allow me to move fast while giving me a safety net.
-Of course, I did not come up with these rules myself. While they are heavily influenced by my experience, my co-workers and my personal style of software design, they are also based on various concepts borrowed from the works of Martin Fowler and Sandi Metz.
+Of course, I did not come up with these rules myself. While they are heavily influenced by my experience, my co-workers and my personal style of software design, they are also based on various concepts borrowed from the works of [Martin Fowler](https://martinfowler.com/) and [Sandi Metz](https://www.sandimetz.com/).
 
 Lastly, these ideas constitute a guideline. I follow then as much as I can, but I compromise when necessary.
